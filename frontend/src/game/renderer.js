@@ -6,6 +6,8 @@ const TILE_COLORS = {
     tree: '#1a3d12',
     stone: '#6b6b6b',
     food: '#e8a838',
+    gold: '#c9961a',
+    diamond: '#1a9ea8'
 };
 
 const TILE_BORDER_COLORS = {
@@ -13,6 +15,8 @@ const TILE_BORDER_COLORS = {
     tree: '#245218',
     stone: '#585858',
     food: '#c8902e',
+    gold: '#e0b84f',
+    diamond: '#3bc4cf'
 };
 
 // ── Draw icons on special tiles ──
@@ -49,6 +53,22 @@ function drawTileIcon(ctx, type, x, y, size) {
         ctx.fillStyle = '#27ae60';
         ctx.beginPath();
         ctx.ellipse(cx + 3, cy - 4, 3, 2, 0.5, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (type === 'gold') {
+        // Gold ore / ingot
+        ctx.fillStyle = '#f1c40f';
+        ctx.fillRect(cx - 4, cy - 3, 8, 6);
+        ctx.fillStyle = '#f39c12';
+        ctx.fillRect(cx - 2, cy - 1, 4, 2);
+    } else if (type === 'diamond') {
+        // Diamond gem
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 5);
+        ctx.lineTo(cx + 4, cy);
+        ctx.lineTo(cx, cy + 5);
+        ctx.lineTo(cx - 4, cy);
+        ctx.closePath();
         ctx.fill();
     }
 }
@@ -151,9 +171,26 @@ export function renderGame(ctx, canvas, world, players, mobs, myId) {
         const screenX = mInterp.x * TILE_SIZE - camX;
         const screenY = mInterp.y * TILE_SIZE - camY;
 
+        let bodyColor = '#e74c3c'; // Normal Red
+        let maxHealth = 30;
+        let pSize = TILE_SIZE - 4;
+        let offset = 2;
+
+        if (mob.type === 'RUNNER') {
+            bodyColor = '#f39c12'; // Orange Fast
+            maxHealth = 15;
+            pSize = TILE_SIZE - 8;
+            offset = 4;
+        } else if (mob.type === 'BRUTE') {
+            bodyColor = '#8e44ad'; // Purple Tank
+            maxHealth = 80;
+            pSize = TILE_SIZE; // Takes full tile
+            offset = 0;
+        }
+
         // Body
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(screenX + 2, screenY + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(screenX + offset, screenY + offset, pSize, pSize);
 
         // Eyes
         ctx.fillStyle = '#fff';
@@ -164,7 +201,7 @@ export function renderGame(ctx, canvas, world, players, mobs, myId) {
         ctx.fillRect(screenX + 13, screenY + 7, 1.5, 1.5);
 
         // Health bar above mob
-        const healthPct = mob.health / 30;
+        const healthPct = mob.health / maxHealth;
         ctx.fillStyle = '#333';
         ctx.fillRect(screenX, screenY - 4, TILE_SIZE, 3);
         ctx.fillStyle = healthPct > 0.5 ? '#2ecc40' : healthPct > 0.25 ? '#f39c12' : '#e74c3c';
@@ -178,32 +215,55 @@ export function renderGame(ctx, canvas, world, players, mobs, myId) {
         const screenY = pInterp.y * TILE_SIZE - camY;
         const isMe = p.id === myId;
 
-        // Player body (circle)
-        ctx.fillStyle = isMe ? '#3b82f6' : '#8b5cf6';
-        ctx.beginPath();
-        ctx.arc(
-            screenX + TILE_SIZE / 2,
-            screenY + TILE_SIZE / 2,
-            TILE_SIZE / 2 - 2,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-
-        // Outline for current player
+        // Outline for current player (optional selection ring)
         if (isMe) {
-            ctx.strokeStyle = '#60a5fa';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(screenX - 1, screenY - 1, TILE_SIZE + 2, TILE_SIZE + 2);
         }
 
-        // Direction indicator (small triangle showing facing)
+        // ── Draw "Steve" Pixel Art Avatar ──
+        // The original Steve face is roughly an 8x8 grid. We divide TILE_SIZE by 8 to get sub-pixel size.
+        const px = TILE_SIZE / 8;
+
+        // Hair (Top and sides)
+        ctx.fillStyle = '#312520'; // Dark brown
+        ctx.fillRect(screenX, screenY, TILE_SIZE, px * 2); // Top hair
+        ctx.fillRect(screenX, screenY + px * 2, px, px * 2); // Left sideburn
+        ctx.fillRect(screenX + px * 7, screenY + px * 2, px, px * 2); // Right sideburn
+
+        // Skin (Base face)
+        ctx.fillStyle = '#B48A76'; // Light tan skin
+        ctx.fillRect(screenX + px, screenY + px * 2, px * 6, px * 2);
+        ctx.fillRect(screenX, screenY + px * 4, TILE_SIZE, px * 4);
+
+        // Eyes (Whites & Pupils)
+        ctx.fillStyle = '#FFFFFF'; // Eye whites
+        ctx.fillRect(screenX + px, screenY + px * 4, px * 2, px);
+        ctx.fillRect(screenX + px * 5, screenY + px * 4, px * 2, px);
+
+        ctx.fillStyle = '#4B3F72'; // Purple/Blue pupils
+        ctx.fillRect(screenX + px * 2, screenY + px * 4, px, px);
+        ctx.fillRect(screenX + px * 5, screenY + px * 4, px, px);
+
+        // Nose
+        ctx.fillStyle = '#9B7462'; // Darker skin tone for nose
+        ctx.fillRect(screenX + px * 3, screenY + px * 5, px * 2, px);
+
+        // Mouth / Beard
+        ctx.fillStyle = '#462C22'; // Dark brown beard
+        ctx.fillRect(screenX + px * 2, screenY + px * 6, px * 4, px * 2);
+
+        ctx.fillStyle = '#9C6F59'; // Mouth opening/lips
+        ctx.fillRect(screenX + px * 3, screenY + px * 6, px * 2, px);
+
+        // Direction indicator (tiny weapon/hand on the side)
         if (p.facing) {
-            const fx = screenX + TILE_SIZE / 2 + p.facing.dx * 6;
-            const fy = screenY + TILE_SIZE / 2 + p.facing.dy * 6;
-            ctx.fillStyle = '#fff';
+            const hx = screenX + TILE_SIZE / 2 + p.facing.dx * (TILE_SIZE / 2);
+            const hy = screenY + TILE_SIZE / 2 + p.facing.dy * (TILE_SIZE / 2);
+            ctx.fillStyle = '#d1d5db'; // Iron color
             ctx.beginPath();
-            ctx.arc(fx, fy, 2, 0, Math.PI * 2);
+            ctx.arc(hx, hy, 4, 0, Math.PI * 2);
             ctx.fill();
         }
 

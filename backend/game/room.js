@@ -1,7 +1,7 @@
 const { TILE, MAP_WIDTH, MAP_HEIGHT, TILE_HEALTH, SOLID_TILES } = require('./constants');
-const { MOB_HEALTH, MOB_DAMAGE, MOB_AGGRO_RANGE, MOB_COUNT, MOB_TICK_MS } = require('./constants');
+const { MOB_TYPES, MOB_AGGRO_RANGE, MOB_COUNT, MOB_TICK_MS } = require('./constants');
 const { MAX_HEALTH, MAX_HUNGER, HUNGER_LOSS_PER_TICK, STARVATION_DAMAGE, FOOD_HUNGER_RESTORE, HUNGER_TICK_MS } = require('./constants');
-const { SCORE_PER_KILL, SCORE_PER_BLOCK_BREAK, SCORE_PER_SURVIVAL_TICK, LEADERBOARD_BROADCAST_MS } = require('./constants');
+const { SCORE_PER_KILL, SCORE_PER_BLOCK_BREAK, SCORE_PER_SURVIVAL_TICK, LEADERBOARD_BROADCAST_MS, MAX_SCORE } = require('./constants');
 
 let nextRoomId = 1;
 
@@ -32,6 +32,18 @@ class Room {
         this.onPlayerDied = null;
         this.onLeaderboardUpdate = null;
         this.onSavePlayerStats = null;
+        this.onMatchOver = null;
+        this.finished = false;
+    }
+
+    checkWinCondition(player) {
+        if (this.finished) return;
+        if (player.score >= MAX_SCORE) {
+            this.finished = true;
+            if (this.onMatchOver) {
+                this.onMatchOver(this, player);
+            }
+        }
     }
 
     // ══════════════════════════════════════
@@ -49,10 +61,12 @@ class Room {
                 }
                 const rand = Math.random();
                 let type;
-                if (rand < 0.60) type = TILE.GRASS;
+                if (rand < 0.65) type = TILE.GRASS;
                 else if (rand < 0.80) type = TILE.TREE;
                 else if (rand < 0.90) type = TILE.STONE;
-                else type = TILE.FOOD;
+                else if (rand < 0.97) type = TILE.FOOD;
+                else if (rand < 0.99) type = TILE.GOLD;
+                else type = TILE.DIAMOND;
 
                 const health = TILE_HEALTH[type] || 0;
                 row.push({ type, health });
@@ -83,13 +97,19 @@ class Room {
 
         tile.health -= amount;
         if (tile.health <= 0) {
+            let pts = SCORE_PER_BLOCK_BREAK;
+            if (tile.type === TILE.GOLD) pts = 50;
+            if (tile.type === TILE.DIAMOND) pts = 100;
+
             tile.type = TILE.GRASS;
             tile.health = 0;
 
-            // Reward player for breaking a block (tree/stone)
+            // Reward player for breaking a block
             if (playerId && this.players[playerId]) {
-                this.players[playerId].score += SCORE_PER_BLOCK_BREAK;
-                this.players[playerId].blocksBroken += 1;
+                const p = this.players[playerId];
+                p.score += pts;
+                p.blocksBroken += 1;
+                this.checkWinCondition(p);
             }
         }
 
@@ -208,6 +228,7 @@ class Room {
             // Add survival score for staying alive
             if (p.health > 0) {
                 p.score += SCORE_PER_SURVIVAL_TICK;
+                this.checkWinCondition(p);
             }
 
             p.hunger = Math.max(0, p.hunger - HUNGER_LOSS_PER_TICK);
@@ -223,14 +244,19 @@ class Room {
     // ══════════════════════════════════════
 
     _spawnMobs(count) {
+        const types = Object.keys(MOB_TYPES);
         for (let i = 0; i < count; i++) {
             const spawn = this.findRandomGrassTile();
             const id = `mob_${this.nextMobId++}`;
+            const typeKey = types[Math.floor(Math.random() * types.length)];
+            const typeData = MOB_TYPES[typeKey];
+
             this.mobs[id] = {
                 id,
+                type: typeKey,
                 x: spawn.x,
                 y: spawn.y,
-                health: MOB_HEALTH,
+                health: typeData.health,
             };
         }
     }
@@ -255,8 +281,10 @@ class Room {
 
             // Reward player for kill
             if (playerId && this.players[playerId]) {
-                this.players[playerId].score += SCORE_PER_KILL;
-                this.players[playerId].kills += 1;
+                const p = this.players[playerId];
+                p.score += SCORE_PER_KILL;
+                p.kills += 1;
+                this.checkWinCondition(p);
             }
             return true;
         }
@@ -305,7 +333,8 @@ class Room {
                 }
 
                 if (this._distance(mob, target) <= 1) {
-                    attacks.push({ playerId: target.id, damage: MOB_DAMAGE });
+                    const dmg = MOB_TYPES[mob.type]?.damage || 10;
+                    attacks.push({ playerId: target.id, damage: dmg });
                 }
             } else {
                 const dirs = [

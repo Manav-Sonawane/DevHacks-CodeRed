@@ -4,6 +4,8 @@ const TILE = {
   TREE: 'tree',
   STONE: 'stone',
   FOOD: 'food',
+  GOLD: 'gold',
+  DIAMOND: 'diamond'
 };
 
 // ── Map ──
@@ -15,10 +17,12 @@ const TILE_HEALTH = {
   [TILE.TREE]: 3,
   [TILE.STONE]: 5,
   [TILE.FOOD]: 1,
+  [TILE.GOLD]: 8,
+  [TILE.DIAMOND]: 12
 };
 
 // ── Solid tiles (block movement) ──
-const SOLID_TILES = new Set([TILE.TREE, TILE.STONE]);
+const SOLID_TILES = new Set([TILE.TREE, TILE.STONE, TILE.GOLD, TILE.DIAMOND]);
 
 // ── Player ──
 const MAX_HEALTH = 100;
@@ -29,12 +33,19 @@ const STARVATION_DAMAGE = 5;       // damage when hunger is 0
 const FOOD_HUNGER_RESTORE = 20;
 const PLAYER_ATTACK_DAMAGE = 15;
 
+// ── Match ──
+const MAX_SCORE = 1000;
+
 // ── Mobs ──
-const MOB_COUNT = 6;
-const MOB_HEALTH = 30;
-const MOB_DAMAGE = 10;
+const MOB_COUNT = 15; // Increased spawn counts!
+const MOB_TICK_MS = 800; // Slightly faster globally
 const MOB_AGGRO_RANGE = 5;
-const MOB_TICK_MS = 1000;
+
+const MOB_TYPES = {
+  NORMAL: { health: 30, damage: 10, sprite: 'zombie' },
+  RUNNER: { health: 15, damage: 5, sprite: 'skeleton' },
+  BRUTE: { health: 80, damage: 20, sprite: 'creeper' }
+};
 
 // ── Scoring ──
 const SCORE_PER_KILL = 50;
@@ -57,9 +68,9 @@ module.exports = {
   STARVATION_DAMAGE,
   FOOD_HUNGER_RESTORE,
   PLAYER_ATTACK_DAMAGE,
+  MAX_SCORE,
   MOB_COUNT,
-  MOB_HEALTH,
-  MOB_DAMAGE,
+  MOB_TYPES,
   MOB_AGGRO_RANGE,
   MOB_TICK_MS,
   SCORE_PER_KILL,

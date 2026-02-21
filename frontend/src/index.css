@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 * {
   margin: 0;
@@ -235,11 +235,41 @@ body,
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 460px;
-  padding: 20px 16px;
+  max-width: 1050px;
+  padding: 40px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  max-height: 100vh;
+}
+
+.lobby-panels {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  gap: 24px;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.lobby-left-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
+  min-width: 320px;
+  max-width: 440px;
+}
+
+.lobby-right-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 400px;
+  max-width: 550px;
 }
 
 /* ── HEADER ── */
@@ -482,16 +512,19 @@ body,
   overflow-y: auto;
 }
 
-.room-list::-webkit-scrollbar {
+.room-list::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
   display: block;
   width: 8px;
 }
 
-.room-list::-webkit-scrollbar-track {
+.room-list::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
   background: #555555;
 }
 
-.room-list::-webkit-scrollbar-thumb {
+.room-list::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: #888888;
   border: 2px solid #555555;
 }

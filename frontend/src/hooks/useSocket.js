@@ -21,6 +21,7 @@ export default function useSocket() {
     // New features state
     const [leaderboard, setLeaderboard] = useState([]);
     const [ping, setPing] = useState(0);
+    const [matchWinner, setMatchWinner] = useState(null);
 
     // Track ping start time
     const pingStartRef = useRef(0);
@@ -76,6 +77,7 @@ export default function useSocket() {
             setPlayers({});
             setMobs({});
             setLeaderboard([]);
+            setMatchWinner(null);
         });
 
         // ── Game Events ──
@@ -131,6 +133,21 @@ export default function useSocket() {
             });
         });
 
+        socket.on('matchOver', ({ winnerName, score }) => {
+            setMatchWinner({ winnerName, score });
+        });
+
+        socket.on('matchClosed', () => {
+            setInGame(false);
+            setRoomId(null);
+            setRoomName('');
+            setWorld([]);
+            setPlayers({});
+            setMobs({});
+            setLeaderboard([]);
+            setMatchWinner(null);
+        });
+
         socket.on('respawn', ({ x, y }) => {
             // Handled via stateUpdate
         });
@@ -181,6 +198,7 @@ export default function useSocket() {
         emit,
         ping,
         leaderboard,
+        matchWinner,
         // Room state
         inGame,
         roomId,

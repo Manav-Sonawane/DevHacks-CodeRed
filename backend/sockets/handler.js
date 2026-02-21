@@ -246,6 +246,24 @@ function _wireRoomCallbacks(io, room) {
             io.to(playerId).emit('respawn', { x: p.x, y: p.y });
         }
     };
+
+    room.onMatchOver = (r, winner) => {
+        console.log(`Match Over in room ${r.id}! Winner: ${winner.name} with ${winner.score} points.`);
+        io.to(r.id).emit('matchOver', { winnerName: winner.name, score: winner.score });
+
+        // Wait 5 seconds, then safely kick everyone back to the lobby
+        setTimeout(() => {
+            const players = Object.keys(r.players);
+            players.forEach(pid => {
+                const s = io.sockets.sockets.get(pid);
+                if (s) {
+                    _leaveCurrentRoom(io, s);
+                    s.emit('matchClosed'); // Distinct event so client knows server kicked them
+                }
+            });
+            broadcastRoomList(io);
+        }, 5000);
+    };
 }
 
 module.exports = { setupSocketHandlers };
