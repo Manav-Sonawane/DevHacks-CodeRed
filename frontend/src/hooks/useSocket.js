@@ -1,0 +1,146 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { io } from 'socket.io-client';
+
+// Connect to the host machine's IP dynamically for LAN support
+const SERVER_URL = `http://${window.location.hostname}:3001`;
+
+export default function useSocket() {
+    const socketRef = useRef(null);
+    const [connected, setConnected] = useState(false);
+    const [myId, setMyId] = useState(null);
+    const [world, setWorld] = useState([]);
+    const [players, setPlayers] = useState({});
+    const [mobs, setMobs] = useState({});
+
+    // Room state
+    const [inGame, setInGame] = useState(false);
+    const [roomId, setRoomId] = useState(null);
+    const [roomName, setRoomName] = useState('');
+    const [roomList, setRoomList] = useState([]);
+
+    useEffect(() => {
+        const socket = io(SERVER_URL, {
+            transports: ['websocket'],
+        });
+        socketRef.current = socket;
+
+        socket.on('connect', () => {
+            setConnected(true);
+        });
+
+        socket.on('disconnect', () => {
+            setConnected(false);
+        });
+
+        // ── Room Events ──
+        socket.on('roomList', (list) => {
+            setRoomList(list);
+        });
+
+        socket.on('roomCreated', ({ roomId, roomName }) => {
+            setRoomId(roomId);
+            setRoomName(roomName);
+        });
+
+        socket.on('leftRoom', () => {
+            setInGame(false);
+            setRoomId(null);
+            setRoomName('');
+            setWorld([]);
+            setPlayers({});
+            setMobs({});
+        });
+
+        // ── Game Events ──
+        socket.on('init', (data) => {
+            setMyId(data.yourId);
+            setWorld(data.world);
+            setPlayers(data.players);
+            setMobs(data.mobs);
+            setRoomId(data.roomId);
+            setRoomName(data.roomName);
+            setInGame(true);
+        });
+
+        socket.on('stateUpdate', (data) => {
+            setPlayers(data.players);
+            setMobs(data.mobs);
+            setWorld(data.world);
+        });
+
+        socket.on('tileUpdate', ({ x, y, tile }) => {
+            setWorld((prev) => {
+                if (!prev || prev.length === 0) return prev;
+                const copy = prev.map((row) => [...row]);
+                copy[y][x] = tile;
+                return copy;
+            });
+        });
+
+        socket.on('playerLeft', ({ id }) => {
+            setPlayers((prev) => {
+                const copy = { ...prev };
+                delete copy[id];
+                return copy;
+            });
+        });
+
+        socket.on('respawn', ({ x, y }) => {
+            // Handled via stateUpdate
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
+
+    const emit = useCallback((event, data) => {
+        if (socketRef.current) {
+            socketRef.current.emit(event, data);
+        }
+    }, []);
+
+    // Room actions
+    const createRoom = useCallback((name) => {
+        if (socketRef.current) {
+            socketRef.current.emit('createRoom', { name });
+        }
+    }, []);
+
+    const joinRoom = useCallback((roomId) => {
+        if (socketRef.current) {
+            socketRef.current.emit('joinRoom', { roomId });
+        }
+    }, []);
+
+    const leaveRoom = useCallback(() => {
+        if (socketRef.current) {
+            socketRef.current.emit('leaveRoom');
+        }
+    }, []);
+
+    const refreshRooms = useCallback(() => {
+        if (socketRef.current) {
+            socketRef.current.emit('listRooms');
+        }
+    }, []);
+
+    return {
+        connected,
+        myId,
+        world,
+        players,
+        mobs,
+        emit,
+        // Room state
+        inGame,
+        roomId,
+        roomName,
+        roomList,
+        // Room actions
+        createRoom,
+        joinRoom,
+        leaveRoom,
+        refreshRooms,
+    };
+}

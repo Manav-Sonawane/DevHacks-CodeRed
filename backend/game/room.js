@@ -1,0 +1,329 @@
+const { TILE, MAP_WIDTH, MAP_HEIGHT, TILE_HEALTH, SOLID_TILES } = require('./constants');
+const { MOB_HEALTH, MOB_DAMAGE, MOB_AGGRO_RANGE, MOB_COUNT } = require('./constants');
+const { MAX_HEALTH, MAX_HUNGER, HUNGER_LOSS_PER_TICK, STARVATION_DAMAGE, FOOD_HUNGER_RESTORE, HUNGER_TICK_MS, MOB_TICK_MS } = require('./constants');
+
+let nextRoomId = 1;
+
+class Room {
+    constructor(name, hostId) {
+        this.id = `room_${nextRoomId++}`;
+        this.name = name;
+        this.hostId = hostId;
+        this.createdAt = Date.now();
+
+        // Per-room game state
+        this.world = [];
+        this.players = {};
+        this.mobs = {};
+        this.nextMobId = 1;
+
+        // Generate world + spawn mobs
+        this._generateWorld();
+        this._spawnMobs(MOB_COUNT);
+
+        // Start tick intervals
+        this.hungerInterval = setInterval(() => this._tickHunger(), HUNGER_TICK_MS);
+        this.mobInterval = setInterval(() => this._tickMobs(), MOB_TICK_MS);
+
+        // Broadcast callback (set by handler)
+        this.onStateChange = null;
+        this.onPlayerDied = null;
+    }
+
+    // ══════════════════════════════════════
+    //  WORLD
+    // ══════════════════════════════════════
+
+    _generateWorld() {
+        this.world = [];
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            const row = [];
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                if (x === 0 || y === 0 || x === MAP_WIDTH - 1 || y === MAP_HEIGHT - 1) {
+                    row.push({ type: TILE.GRASS, health: 0 });
+                    continue;
+                }
+                const rand = Math.random();
+                let type;
+                if (rand < 0.60) type = TILE.GRASS;
+                else if (rand < 0.80) type = TILE.TREE;
+                else if (rand < 0.90) type = TILE.STONE;
+                else type = TILE.FOOD;
+
+                const health = TILE_HEALTH[type] || 0;
+                row.push({ type, health });
+            }
+            this.world.push(row);
+        }
+    }
+
+    getTile(x, y) {
+        if (x < 0 || x >= MAP_WIDTH || y < 0 || y >= MAP_HEIGHT) return null;
+        return this.world[y][x];
+    }
+
+    isSolid(x, y) {
+        const tile = this.getTile(x, y);
+        if (!tile) return true;
+        return SOLID_TILES.has(tile.type);
+    }
+
+    isInBounds(x, y) {
+        return x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT;
+    }
+
+    damageTile(x, y, amount = 1) {
+        if (!this.isInBounds(x, y)) return null;
+        const tile = this.world[y][x];
+        if (tile.type === TILE.GRASS) return null;
+
+        tile.health -= amount;
+        if (tile.health <= 0) {
+            tile.type = TILE.GRASS;
+            tile.health = 0;
+        }
+        return tile;
+    }
+
+    findRandomGrassTile() {
+        let attempts = 0;
+        while (attempts < 1000) {
+            const x = Math.floor(Math.random() * MAP_WIDTH);
+            const y = Math.floor(Math.random() * MAP_HEIGHT);
+            if (this.world[y][x].type === TILE.GRASS) return { x, y };
+            attempts++;
+        }
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                if (this.world[y][x].type === TILE.GRASS) return { x, y };
+            }
+        }
+        return { x: 1, y: 1 };
+    }
+
+    // ══════════════════════════════════════
+    //  PLAYERS
+    // ══════════════════════════════════════
+
+    addPlayer(socketId) {
+        const spawn = this.findRandomGrassTile();
+        const player = {
+            id: socketId,
+            x: spawn.x,
+            y: spawn.y,
+            health: MAX_HEALTH,
+            hunger: MAX_HUNGER,
+            facing: { dx: 0, dy: -1 },
+        };
+        this.players[socketId] = player;
+        return player;
+    }
+
+    removePlayer(socketId) {
+        delete this.players[socketId];
+        return Object.keys(this.players).length === 0;
+    }
+
+    getPlayer(id) {
+        return this.players[id] || null;
+    }
+
+    getAllPlayers() {
+        return this.players;
+    }
+
+    movePlayer(id, dx, dy) {
+        const player = this.players[id];
+        if (!player) return false;
+
+        dx = Math.sign(dx);
+        dy = Math.sign(dy);
+        if (dx === 0 && dy === 0) return false;
+
+        player.facing = { dx, dy };
+
+        const newX = player.x + dx;
+        const newY = player.y + dy;
+
+        if (!this.isInBounds(newX, newY)) return false;
+        if (this.isSolid(newX, newY)) return false;
+
+        player.x = newX;
+        player.y = newY;
+        return true;
+    }
+
+    eatFood(id) {
+        const player = this.players[id];
+        if (!player) return false;
+        player.hunger = Math.min(MAX_HUNGER, player.hunger + FOOD_HUNGER_RESTORE);
+        return true;
+    }
+
+    damagePlayer(id, amount) {
+        const player = this.players[id];
+        if (!player) return false;
+        player.health = Math.max(0, player.health - amount);
+        return player.health <= 0;
+    }
+
+    getFacingTile(id) {
+        const player = this.players[id];
+        if (!player) return null;
+        return {
+            x: player.x + player.facing.dx,
+            y: player.y + player.facing.dy,
+        };
+    }
+
+    _tickHunger() {
+        for (const id of Object.keys(this.players)) {
+            const p = this.players[id];
+            p.hunger = Math.max(0, p.hunger - HUNGER_LOSS_PER_TICK);
+            if (p.hunger <= 0) {
+                p.health = Math.max(0, p.health - STARVATION_DAMAGE);
+            }
+        }
+        if (this.onStateChange) this.onStateChange(this);
+    }
+
+    // ══════════════════════════════════════
+    //  MOBS
+    // ══════════════════════════════════════
+
+    _spawnMobs(count) {
+        for (let i = 0; i < count; i++) {
+            const spawn = this.findRandomGrassTile();
+            const id = `mob_${this.nextMobId++}`;
+            this.mobs[id] = {
+                id,
+                x: spawn.x,
+                y: spawn.y,
+                health: MOB_HEALTH,
+            };
+        }
+    }
+
+    getAllMobs() {
+        return this.mobs;
+    }
+
+    getMobAt(x, y) {
+        for (const mob of Object.values(this.mobs)) {
+            if (mob.x === x && mob.y === y) return mob;
+        }
+        return null;
+    }
+
+    damageMob(id, amount) {
+        const mob = this.mobs[id];
+        if (!mob) return false;
+        mob.health = Math.max(0, mob.health - amount);
+        if (mob.health <= 0) {
+            delete this.mobs[id];
+            return true;
+        }
+        return false;
+    }
+
+    _distance(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    _findClosestPlayer(mob) {
+        let closest = null;
+        let closestDist = Infinity;
+        for (const p of Object.values(this.players)) {
+            const d = this._distance(mob, p);
+            if (d <= MOB_AGGRO_RANGE && d < closestDist) {
+                closest = p;
+                closestDist = d;
+            }
+        }
+        return closest;
+    }
+
+    _tickMobs() {
+        const attacks = [];
+
+        for (const mob of Object.values(this.mobs)) {
+            const target = this._findClosestPlayer(mob);
+
+            if (target) {
+                const dx = Math.sign(target.x - mob.x);
+                const dy = Math.sign(target.y - mob.y);
+
+                let moveX = mob.x;
+                let moveY = mob.y;
+
+                if (Math.abs(target.x - mob.x) >= Math.abs(target.y - mob.y)) {
+                    moveX += dx;
+                } else {
+                    moveY += dy;
+                }
+
+                if (this.isInBounds(moveX, moveY) && !this.isSolid(moveX, moveY)) {
+                    mob.x = moveX;
+                    mob.y = moveY;
+                }
+
+                if (this._distance(mob, target) <= 1) {
+                    attacks.push({ playerId: target.id, damage: MOB_DAMAGE });
+                }
+            } else {
+                const dirs = [
+                    { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+                    { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+                ];
+                const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                const newX = mob.x + dir.dx;
+                const newY = mob.y + dir.dy;
+                if (this.isInBounds(newX, newY) && !this.isSolid(newX, newY)) {
+                    mob.x = newX;
+                    mob.y = newY;
+                }
+            }
+        }
+
+        // Apply mob attacks
+        for (const atk of attacks) {
+            const died = this.damagePlayer(atk.playerId, atk.damage);
+            if (died && this.onPlayerDied) {
+                this.onPlayerDied(this, atk.playerId);
+            }
+        }
+
+        if (this.onStateChange) this.onStateChange(this);
+    }
+
+    // ══════════════════════════════════════
+    //  STATE & LIFECYCLE
+    // ══════════════════════════════════════
+
+    getState() {
+        return {
+            world: this.world,
+            players: this.players,
+            mobs: this.mobs,
+        };
+    }
+
+    getInfo() {
+        return {
+            id: this.id,
+            name: this.name,
+            playerCount: Object.keys(this.players).length,
+            hostId: this.hostId,
+        };
+    }
+
+    destroy() {
+        clearInterval(this.hungerInterval);
+        clearInterval(this.mobInterval);
+        this.players = {};
+        this.mobs = {};
+        this.world = [];
+    }
+}
+
+module.exports = Room;
