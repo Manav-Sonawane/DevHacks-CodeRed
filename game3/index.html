@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dark Room Survival — Multiplayer</title>
+  <meta name="description"
+    content="A browser-based multiplayer 3D survival game. Explore dark rooms, use torches, and eat food to survive." />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+  <script>
+    // Default backend (overridden by ?backend= in URL)
+    window.BACKEND_URL = ''; 
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
