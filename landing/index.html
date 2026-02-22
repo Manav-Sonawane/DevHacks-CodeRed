@@ -736,6 +736,45 @@
         document.querySelectorAll('.game-card.disabled').forEach(card => {
             card.addEventListener('click', e => e.preventDefault());
         });
+
+        // Web Audio API for arcade sounds
+        let audioCtx;
+
+        function playArcadeSound() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return; // Feature detection
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            // Square wave for classic 8-bit sound
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+
+            // Envelope to prevent popping and fade out quickly
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        // Add click listener to interactive elements to play the arcade sound
+        document.querySelectorAll('.game-card:not(.disabled), .btn-circle, .joystick').forEach(el => {
+            el.addEventListener('click', () => {
+                playArcadeSound();
+            });
+        });
     </script>
 </body>
 
