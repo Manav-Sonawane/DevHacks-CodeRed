@@ -6,7 +6,7 @@ import useStore from '../../store/useStore';
 
 function RemotePlayerModel({ position, rotation, username }) {
     const group = useRef();
-    const { scene, animations } = useGLTF('./models/Walking.glb');
+    const { scene, animations } = useGLTF('/escape/models/Walking.glb');
     const { actions } = useAnimations(animations, group);
     const targetPos = useRef(new THREE.Vector3(...position));
 
@@ -72,7 +72,7 @@ function RemotePlayerModel({ position, rotation, username }) {
 }
 
 // Preload the model so it doesn't pop in late
-useGLTF.preload('./models/Walking.glb');
+useGLTF.preload('/escape/models/Walking.glb');
 
 export default function Scene({ players }) {
     const socket = useStore(state => state.socket);
