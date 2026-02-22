@@ -146,6 +146,10 @@ async function connectToServer() {
         }
     });
 
+    mp.on('RECEIVE_CHAT', (msg) => {
+        appendChatMessage(msg.player, msg.message);
+    });
+
     mp.on('OPPONENT_LEFT', () => {
         alert('Your opponent disconnected. Returning to lobby.');
         mp.disconnect();
@@ -222,6 +226,8 @@ function startMultiplayerGame(msg) {
     });
     document.getElementById('p1-name-label').textContent = msg.p1Name;
     document.getElementById('p2-name-label').textContent = msg.p2Name;
+    const cb = document.getElementById('chatbox');
+    if (cb) cb.classList.remove('hidden');
 }
 
 function startLocalGame() {
@@ -252,6 +258,29 @@ cancelBtn?.addEventListener('click', () => {
 });
 
 localBtn?.addEventListener('click', startLocalGame);
+
+// ── Chat Logic ──
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const chatMessages = document.getElementById('chat-messages');
+
+function appendChatMessage(author, text) {
+    if (!chatMessages) return;
+    const line = document.createElement('div');
+    line.className = 'msg-line';
+    line.innerHTML = `<span class="msg-author">[${escHtml(author)}]</span> <span class="msg-text">${escHtml(text)}</span>`;
+    chatMessages.appendChild(line);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+chatForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (text && mp) {
+        mp.sendChat(text);
+        chatInput.value = '';
+    }
+});
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 showLobby();

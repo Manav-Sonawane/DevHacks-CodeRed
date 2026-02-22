@@ -209,6 +209,15 @@ function handleMessage(ws, raw) {
             break;
         }
 
+        case 'SEND_CHAT': {
+            const room = rooms.get(ws._roomId);
+            if (!room) return;
+            const sender = room.players.find(p => p.ws === ws);
+            if (!sender) return;
+            broadcastAll(room, { type: 'RECEIVE_CHAT', player: sender.name, message: msg.message });
+            break;
+        }
+
         default:
             console.warn('Unknown message type:', msg.type);
     }

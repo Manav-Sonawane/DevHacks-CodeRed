@@ -168,6 +168,20 @@ function setupSocketHandlers(io) {
             }
         });
 
+        // ── Chat ──
+        socket.on('send_chat', (data) => {
+            const room = roomManager.getRoomByPlayer(socket.id);
+            if (!room) return;
+            const p = room.getPlayer(socket.id);
+            if (!p) return;
+
+            io.to(room.id).emit('receive_chat', {
+                player: p.name,
+                message: data.message,
+                timestamp: Date.now()
+            });
+        });
+
         // ── Disconnect ──
         socket.on('disconnect', () => {
             console.log(`Socket disconnected: ${socket.id}`);

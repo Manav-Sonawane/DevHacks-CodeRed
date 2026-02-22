@@ -12,6 +12,7 @@ export function useSocket() {
     const [myHealth, setMyHealth] = useState(100);
     const [playerCount, setPlayerCount] = useState(0);
     const [connected, setConnected] = useState(false);
+    const [messages, setMessages] = useState([]);
 
     const myIdRef = useRef(null);
 
@@ -79,6 +80,10 @@ export function useSocket() {
         socket.on('connect', () => setConnected(true));
         socket.on('disconnect', () => setConnected(false));
 
+        socket.on('receive_chat', (data) => {
+            setMessages(prev => [...prev, data]);
+        });
+
         return () => {
             socket.off('init');
             socket.off('gameState');
@@ -88,6 +93,7 @@ export function useSocket() {
             socket.off('foodConsumed');
             socket.off('connect');
             socket.off('disconnect');
+            socket.off('receive_chat');
         };
     }, []);
 
@@ -99,6 +105,8 @@ export function useSocket() {
         dayProgress,
         myHealth,
         playerCount,
-        connected
-    }), [remotePlayers, foods, enemies, dayProgress, myHealth, playerCount, connected]);
+        connected,
+        messages,
+        sendChat: (message) => socket.emit('send_chat', { message })
+    }), [remotePlayers, foods, enemies, dayProgress, myHealth, playerCount, connected, messages]);
 }

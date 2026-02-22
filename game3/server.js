@@ -309,6 +309,15 @@ io.on('connection', (socket) => {
             }
         }
     });
+
+    // ── Chat ──
+    socket.on('send_chat', (data) => {
+        if (!currentRoomId || !rooms[currentRoomId]) return;
+        const player = rooms[currentRoomId].players[socket.id];
+        if (player) {
+            io.to(currentRoomId).emit('receive_chat', { player: player.nickname, message: data.message });
+        }
+    });
 });
 
 // Catch-all route for SPA

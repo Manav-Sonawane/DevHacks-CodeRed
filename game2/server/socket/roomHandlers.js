@@ -121,6 +121,11 @@ module.exports = (io, socket) => {
         }
     });
 
+    socket.on('send_chat', (data) => {
+        const { roomId, message, username } = data;
+        io.to(roomId).emit('receive_chat', { message, username });
+    });
+
     socket.on('answer_quiz', (data) => {
         const { roomId, objectId, answer } = data;
         const roomState = gameStateManager.getRoom(roomId);

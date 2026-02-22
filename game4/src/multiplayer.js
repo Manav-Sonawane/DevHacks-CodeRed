@@ -82,6 +82,10 @@ export default class Multiplayer {
         this._send({ type: 'GAME_OVER', winner, roomId: this.roomId });
     }
 
+    sendChat(message) {
+        this._send({ type: 'SEND_CHAT', message });
+    }
+
     disconnect() {
         this.ws?.close();
     }

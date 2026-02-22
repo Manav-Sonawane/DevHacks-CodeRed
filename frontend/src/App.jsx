@@ -4,10 +4,12 @@ import GameCanvas from './components/GameCanvas';
 import HUD from './components/HUD';
 import Lobby from './components/Lobby';
 import Leaderboard from './components/Leaderboard';
+import Chat from './components/Chat';
 
 export default function App() {
     const {
         connected, myId, world, players, mobs, emit, ping, leaderboard, matchWinner,
+        messages, sendChat,
         inGame, roomId, roomName, roomList,
         createRoom, joinRoom, leaveRoom, refreshRooms,
     } = useSocket();
@@ -71,6 +73,7 @@ export default function App() {
                 myId={myId}
                 isOpen={isLeaderboardOpen && !matchWinner}
             />
+            <Chat messages={messages} sendChat={sendChat} />
 
             {matchWinner && (
                 <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center animate-in fade-in duration-500">

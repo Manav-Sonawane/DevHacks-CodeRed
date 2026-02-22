@@ -26,6 +26,7 @@ export default function useSocket() {
     const [leaderboard, setLeaderboard] = useState([]);
     const [ping, setPing] = useState(0);
     const [matchWinner, setMatchWinner] = useState(null);
+    const [messages, setMessages] = useState([]);
 
     // Track ping start time
     const pingStartRef = useRef(0);
@@ -83,6 +84,7 @@ export default function useSocket() {
             setMobs({});
             setLeaderboard([]);
             setMatchWinner(null);
+            setMessages([]);
         });
 
         // ── Game Events ──
@@ -142,6 +144,10 @@ export default function useSocket() {
             setMatchWinner({ winnerName, score });
         });
 
+        socket.on('receive_chat', (msg) => {
+            setMessages((prev) => [...prev, msg]);
+        });
+
         socket.on('matchClosed', () => {
             setInGame(false);
             setRoomId(null);
@@ -151,6 +157,7 @@ export default function useSocket() {
             setMobs({});
             setLeaderboard([]);
             setMatchWinner(null);
+            setMessages([]);
         });
 
         socket.on('respawn', ({ x, y }) => {
@@ -194,6 +201,12 @@ export default function useSocket() {
         }
     }, []);
 
+    const sendChat = useCallback((message) => {
+        if (socketRef.current) {
+            socketRef.current.emit('send_chat', { message });
+        }
+    }, []);
+
     return {
         connected,
         myId,
@@ -204,6 +217,8 @@ export default function useSocket() {
         ping,
         leaderboard,
         matchWinner,
+        messages,
+        sendChat,
         // Room state
         inGame,
         roomId,

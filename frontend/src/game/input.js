@@ -7,6 +7,11 @@ export function setupInput(emit) {
     const MOVE_COOLDOWN = 100; // 100ms input throttle
 
     const keyHandler = (e) => {
+        // Ignore input if user is typing in a textarea or input field (like the chat)
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
         const now = Date.now();
         switch (e.key.toLowerCase()) {
             case 'w':

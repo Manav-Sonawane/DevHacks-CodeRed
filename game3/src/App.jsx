@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Game } from './components/Game.jsx';
 import { HUD } from './components/HUD.jsx';
 import { Lobby } from './components/Lobby.jsx';
+import { Chat } from './components/Chat.jsx';
 import { useSocket } from './hooks/useSocket.js';
 
 export default function App() {
     const [roomId, setRoomId] = useState(null);
     const [playerName, setPlayerName] = useState('');
-    const { socket, remotePlayers, foods, enemies, dayProgress, myHealth, playerCount, connected } = useSocket();
+    const { socket, remotePlayers, foods, enemies, dayProgress, myHealth, playerCount, connected, messages, sendChat } = useSocket();
     const [torchBattery, setTorchBattery] = useState(100);
     const [isHiding, setIsHiding] = useState(false);
     const [inventory, setInventory] = useState([]);
@@ -66,6 +67,8 @@ export default function App() {
                 inventory={inventory}
                 onUseItem={handleUseItem}
             />
+
+            <Chat messages={messages} sendChat={sendChat} />
         </div>
     );
 }

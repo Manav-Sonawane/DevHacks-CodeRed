@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import useStore from '../../store/useStore';
+import Chatbox from './Chatbox';
+
 export default function HUD({ roomId }) {
     const [timeLeft, setTimeLeft] = useState(601); // 10 minutes
     const inventory = useStore(state => state.inventory);
@@ -247,6 +249,7 @@ export default function HUD({ roomId }) {
                     </div>
                 </div>
             )}
+            <Chatbox />
         </div>
     );
 }
